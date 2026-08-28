@@ -87,7 +87,36 @@ class PgVecDB(BaseVecDB):
             )
             if not row or row["atttypmod"] is None:
                 return  # 表不存在或无 embedding 列 → 跳过
-            current_dim = int(row["atttypmod"]) - 4
+            atttypmod = int(row["atttypmod"])
+            if atttypmod == -1:
+                # atttypmod == -1: 列声明为无维度约束的 vector（如 `embedding vector` 不带括号）。
+                # 维度由数据决定，且 pgvector 会按“首个插入向量”锁定维度——
+                # 若历史数据为旧模型维度，后续插入新维度向量仍会报错。
+                # 因此先检测表内现有数据维度，再决定是否升级/清空。
+                try:
+                    # 兼容方式提取向量维度: vector -> real[] -> 数组长度
+                    data_dim = await pool.fetchval(
+                        f"SELECT array_length(embedding::real[], 1) FROM {table} LIMIT 1"
+                    )
+                except Exception:
+                    data_dim = None
+                if data_dim is not None and data_dim != self.dimension:
+                    logger.warning(
+                        f"[PgVecDB] 向量表 {table} 现有数据维度 {data_dim} 与当前模型 "
+                        f"{self.dimension} 不一致，清空旧维度向量并重建列类型"
+                    )
+                    await pool.execute(f"DELETE FROM {table}")
+                else:
+                    logger.info(
+                        f"[PgVecDB] 向量表 {table} 列为无维度约束 vector，"
+                        f"升级为 vector({self.dimension})"
+                    )
+                await pool.execute(
+                    f"ALTER TABLE {table} ALTER COLUMN embedding TYPE vector({self.dimension})"
+                )
+                self._dim_checked = True
+                return
+            current_dim = atttypmod - 4
             if current_dim == self.dimension:
                 return  # 维度一致，无需处理
 

@@ -358,7 +358,7 @@ async def _detect_schema(pool) -> str:
 class DBMigration:
     """数据库迁移管理器 (PostgreSQL schema 自举)"""
 
-    CURRENT_VERSION = 7
+    CURRENT_VERSION = 8
 
     VERSION_HISTORY = {
         1: "初始版本 - 基础记忆存储",
@@ -368,6 +368,7 @@ class DBMigration:
         5: "Graph memory",
         6: "FTS 表前缀化",
         7: "PG schema 自举: 建表 + tsv 触发器 + 时间列类型修正",
+        8: "向量维度检测修复: 无维度约束 vector(atttypmod=-1) 不再误判/清空",
     }
 
     def __init__(self, db_path: str):
@@ -443,8 +444,9 @@ class DBMigration:
                 """,
                 table,
             )
-            if row and row["atttypmod"]:
+            if row and row["atttypmod"] is not None and int(row["atttypmod"]) != -1:
                 # vector 维度 = typmod - 4 (VECTOR_TYPEMOD_HEADER)
+                # atttypmod == -1 表示无维度约束的 vector，维度由数据决定，返回 None
                 return int(row["atttypmod"]) - 4
         except Exception:
             pass

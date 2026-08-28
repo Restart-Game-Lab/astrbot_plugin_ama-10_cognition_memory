@@ -1,5 +1,5 @@
 name: astrbot_plugin_ama_10_cognition_memory
 author: preca-hoshino
-version: 3.0.0
+version: 3.0.1
 description: 为 AstrBot 打造的智能长期记忆插件，拥有完整的记忆生命周期管理、图记忆、多路召回等能力。Fork 自 lxfight/astrbot_plugin_livingmemory。
 repo: https://github.com/Restart-Game-Lab/astrbot_plugin_ama-10_cognition_memory
