@@ -30,6 +30,45 @@ class GraphStore:
         """返回当前 UTC datetime 对象（asyncpg timestamptz 列需要 datetime 实例）"""
         return datetime.now(timezone.utc)
 
+    # ---- 时间列类型自适应缓存 -------------------------------------------
+    _time_col_type_cache: dict[str, str] = {}  # "table.column" -> data_type
+
+    async def _time_value(self, table: str, column: str, now: Any) -> Any:
+        """根据列实际类型返回可安全传入的参数值。
+
+        历史缺陷: graph 表时间列曾被误建为 double precision，
+        asyncpg 对 float8 列不接受 datetime → "must be real number"。
+        schema 自举会修正列类型，但这里做运行时兜底，保证任何情况下
+        都不再报 DataError。
+        """
+        key = f"{table}.{column}"
+        if key not in self._time_col_type_cache:
+            try:
+                pool = get_pool()
+                row = await pool.fetchrow(
+                    """
+                    SELECT data_type FROM information_schema.columns
+                    WHERE table_schema = ANY(current_schemas(false))
+                      AND table_name = $1 AND column_name = $2
+                    """,
+                    table,
+                    column,
+                )
+                self._time_col_type_cache[key] = (
+                    row["data_type"] if row and row["data_type"] else "timestamp with time zone"
+                )
+            except Exception:
+                # 查询失败时默认按 timestamptz（新安装的正确类型）
+                self._time_col_type_cache[key] = "timestamp with time zone"
+
+        dtype = self._time_col_type_cache[key]
+        if "timestamp" in dtype:
+            return now  # datetime 实例
+        # float 列: 传 unix 时间戳数值
+        if isinstance(now, datetime):
+            return now.timestamp()
+        return now
+
     @staticmethod
     def _now_iso() -> str:
         return datetime.now(timezone.utc).isoformat()
@@ -70,7 +109,7 @@ class GraphStore:
                     SET node_value = ?, metadata = ?, updated_at = ?
                     WHERE id = ?
                     """,
-                    (node.value, self._to_json(node.metadata), now, row[0]),
+                    (node.value, self._to_json(node.metadata), await self._time_value("graph_nodes", "updated_at", now), row[0]),
                 )
                 await db.commit()
                 return int(row[0])
@@ -89,8 +128,8 @@ class GraphStore:
                     node.value,
                     node.canonical_value,
                     self._to_json(node.metadata),
-                    now,
-                    now,
+                    await self._time_value("graph_nodes", "created_at", now),
+                    await self._time_value("graph_nodes", "updated_at", now),
                 ),
             )
             await db.commit()
@@ -129,7 +168,7 @@ class GraphStore:
                         edge.confidence,
                         edge.status,
                         self._to_json(edge.metadata),
-                        now,
+                        await self._time_value("graph_edges", "updated_at", now),
                         row[0],
                     ),
                 )
@@ -161,7 +200,7 @@ class GraphStore:
                     SET confidence = ?, weight = ?, updated_at = ?
                     WHERE id = ?
                     """,
-                    (merged_confidence, merged_weight, now, existing_id),
+                    (merged_confidence, merged_weight, await self._time_value("graph_edges", "updated_at", now), existing_id),
                 )
                 await db.commit()
                 return existing_id
@@ -185,8 +224,8 @@ class GraphStore:
                     edge.confidence,
                     edge.status,
                     self._to_json(edge.metadata),
-                    now,
-                    now,
+                    await self._time_value("graph_edges", "created_at", now),
+                    await self._time_value("graph_edges", "updated_at", now),
                 ),
             )
             await db.commit()
@@ -224,7 +263,7 @@ class GraphStore:
                         entry.content,
                         self._to_json(entry.metadata),
                         edge_id,
-                        now,
+                        await self._time_value("graph_entries", "updated_at", now),
                         entry_id,
                     ),
                 )
@@ -251,8 +290,8 @@ class GraphStore:
                         entry.content,
                         self._to_json(entry.metadata),
                         edge_id,
-                        now,
-                        now,
+                        await self._time_value("graph_entries", "created_at", now),
+                        await self._time_value("graph_entries", "updated_at", now),
                     ),
                 )
                 entry_id = int(cursor.lastrowid)
@@ -274,10 +313,11 @@ class GraphStore:
         self, entry_id: int, vector_doc_id: int
     ) -> None:
         """Persist the vector-store identifier for one graph entry."""
+        now = self._now()
         async with self._connect() as db:
             await db.execute(
                 "UPDATE graph_entries SET vector_doc_id = ?, updated_at = ? WHERE id = ?",
-                (vector_doc_id, self._now(), entry_id),
+                (vector_doc_id, await self._time_value("graph_entries", "updated_at", now), entry_id),
             )
             await db.commit()
 

@@ -39,6 +39,7 @@ class PgVecDB(BaseVecDB):
         self.vec_table = vec_table
         self.doc_table = doc_table
         self.dimension = dimension
+        self._dim_checked = False  # 维度检查惰性标记（insert/retrieve 首次执行一次）
         # provider_getter: 可调用对象，返回当前活跃的 embedding provider
         # 用于避免持有 stale 引用（AstrBot 可能 terminate 旧 provider 并创建新实例）
         self._provider_getter = provider_getter
@@ -58,6 +59,50 @@ class PgVecDB(BaseVecDB):
 
     async def initialize(self) -> None:
         pass  # 表结构由迁移脚本创建
+
+    async def _ensure_vector_dimension(self, pool, table: str) -> None:
+        """确保向量表列的维度与当前 embedding 模型匹配。
+
+        历史场景: embedding 模型曾为 2560 维（旧表 vector(2560)），
+        当前模型为 1024 维。pgvector 列类型固定后，插入不同维度向量
+        会报 "different vector dimensions 1024 and 2560"。
+
+        处理策略（安全）:
+          1. 若表列维度与当前模型不同，先清空该表全部向量
+             （旧模型向量对当前模型无意义，检索时也会因维度报错）
+          2. 动态重建列类型为当前维度（ALTER COLUMN TYPE vector(dim)）
+             —— 表空后执行是 O(1) 的 catalog 操作
+        """
+        try:
+            row = await pool.fetchrow(
+                """
+                SELECT atttypmod
+                FROM pg_attribute a
+                JOIN pg_class c ON c.oid = a.attrelid
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE n.nspname = ANY(current_schemas(false))
+                  AND c.relname = $1 AND a.attname = 'embedding'
+                """,
+                table,
+            )
+            if not row or row["atttypmod"] is None:
+                return  # 表不存在或无 embedding 列 → 跳过
+            current_dim = int(row["atttypmod"]) - 4
+            if current_dim == self.dimension:
+                return  # 维度一致，无需处理
+
+            logger.warning(
+                f"[PgVecDB] 向量表 {table} 列维度 {current_dim} 与当前模型 "
+                f"{self.dimension} 不一致，清空旧维度向量并重建列类型"
+            )
+            # 清空向量（保留 documents 中的文本，仅删向量）
+            await pool.execute(f"DELETE FROM {table}")
+            await pool.execute(
+                f"ALTER TABLE {table} ALTER COLUMN embedding TYPE vector({self.dimension})"
+            )
+            logger.info(f"[PgVecDB] 向量表 {table} 已重建为 dimension={self.dimension}")
+        except Exception as e:
+            logger.warning(f"[PgVecDB] 向量维度检查失败（忽略）: {e}")
 
     async def insert(
         self,
@@ -81,6 +126,10 @@ class PgVecDB(BaseVecDB):
             int_id = row["id"]
 
             vec = await self._get_embedding(content)
+            # 插入前确保向量列维度匹配（首次调用时执行一次）
+            if not getattr(self, "_dim_checked", False):
+                await self._ensure_vector_dimension(pool, self.vec_table)
+                self._dim_checked = True
             await conn.execute(
                 f"INSERT INTO {self.vec_table} (doc_id, embedding) "
                 "VALUES ($1, $2::vector)",
@@ -131,6 +180,10 @@ class PgVecDB(BaseVecDB):
     ) -> None:
         """批量插入向量（用于索引重建）"""
         pool = get_pool()
+        # 索引重建场景同样需要维度预检
+        if not getattr(self, "_dim_checked", False):
+            await self._ensure_vector_dimension(pool, self.vec_table)
+            self._dim_checked = True
         async with pool.acquire() as conn:
             for i in range(0, len(int_ids), batch_size):
                 batch_ids = int_ids[i : i + batch_size]
@@ -213,6 +266,20 @@ class PgVecDB(BaseVecDB):
         logger.debug(f"[PgVecDB] retrieve: query={query[:50]!r}, top_k={top_k}, fetch_k={fetch_k}, filters={metadata_filters}")
         vec = await self._resolve_embedding(query, query_embedding)
         logger.debug(f"[PgVecDB] retrieve: embedding 维度={len(vec)}")
+
+        # 查询向量维度需与列匹配；不匹配时自动重铸列（清空旧向量）
+        if not getattr(self, "_dim_checked", False):
+            await self._ensure_vector_dimension(pool, self.vec_table)
+            self._dim_checked = True
+        elif len(vec) != self.dimension:
+            logger.warning(
+                f"[PgVecDB] 查询向量维度 {len(vec)} 与配置 {self.dimension} 不一致，"
+                "尝试以实际维度重建向量列"
+            )
+            self._dim_checked = False
+            await self._ensure_vector_dimension(pool, self.vec_table)
+            self._dim_checked = True
+
         vec_str = self._vec_to_str(vec)
 
         where_clauses = []

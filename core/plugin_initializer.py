@@ -315,6 +315,16 @@ class PluginInitializer:
             await init_pool(pg_dsn)
             logger.info(f"PostgreSQL 连接池已初始化: {pg_dsn.split('@')[1] if '@' in pg_dsn else pg_dsn}")
 
+            # schema 自举: 建表 / 补 tsv 列 / 触发器 / 时间列类型修正
+            from ..storage.db_migration import DBMigration
+
+            migration = DBMigration(str(data_dir_path))
+            try:
+                result = await migration.ensure_schema()
+                logger.info(f"PG schema 自举结果: {result.get('message')}")
+            except Exception as e:
+                logger.warning(f"PG schema 自举失败（继续初始化，可能影响 FTS 检索）: {e}")
+
             # provider_getter 回调: 让 PgVecDB 动态获取最新的 embedding_provider
             _get_emb = lambda: self.embedding_provider
 

@@ -12,6 +12,23 @@ from astrbot.api import logger
 _pool: asyncpg.Pool | None = None
 
 PG_SCHEMA = "livingmemory"
+# 当前实际使用的 schema（可能在初始化时被迁移模块切到 public，兼容旧数据）
+_active_schema: str = PG_SCHEMA
+
+
+async def _init_conn(conn: asyncpg.Connection) -> None:
+    """每个新连接建立时应用 search_path（使用动态 schema，兼容 public 旧数据）"""
+    await conn.execute(f"SET search_path TO {_active_schema},public")
+
+
+def set_search_path(schema: str) -> None:
+    """切换全局生效的 schema（需在 init_pool 之前或之后均可）
+
+    之后新建的连接会使用新 schema；已建连接由迁移模块的 pool.execute(SET)
+    同步，两处配合保证一致。
+    """
+    global _active_schema
+    _active_schema = schema
 
 
 async def init_pool(dsn: str, *, min_size: int = 2, max_size: int = 10) -> asyncpg.Pool:
@@ -25,7 +42,7 @@ async def init_pool(dsn: str, *, min_size: int = 2, max_size: int = 10) -> async
         min_size=min_size,
         max_size=max_size,
         command_timeout=60,
-        server_settings={"search_path": f"{PG_SCHEMA},public"},
+        init=_init_conn,
     )
     logger.info(f"[PG] 连接池已创建 (min={min_size}, max={max_size}, schema={PG_SCHEMA})")
     # 验证连接可用性

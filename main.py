@@ -557,10 +557,15 @@ class AmaMemoryPlugin(Star):
             await self.initializer.memory_engine.close()
             logger.info("MemoryEngine 已关闭")
 
-        # 关闭 FaissVecDB
-        if self.initializer.db:
-            await self.initializer.db.close()
-            logger.info("FaissVecDB 已关闭")
+        # 关闭 PgVecDB（原代码引用 initializer.db 不存在，实际为 vec_db/graph_vec_db）
+        for _vdb_name in ("vec_db", "graph_vec_db"):
+            _vdb = getattr(self.initializer, _vdb_name, None)
+            if _vdb is not None:
+                try:
+                    await _vdb.close()
+                    logger.info(f"PgVecDB ({_vdb_name}) 已关闭")
+                except Exception as e:
+                    logger.warning(f"关闭 {_vdb_name} 时出错: {e}")
 
         # 关闭全局 PG 连接池（必须在所有组件关闭之后）
         try:
