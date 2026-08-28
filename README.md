@@ -33,7 +33,7 @@
 
 ```bash
 cd /path/to/AstrBot/data/plugins
-git clone https://github.com/preca-hoshino/astrbot_plugin_ama-10_memory.git astrbot_plugin_ama_10_memory
+git clone https://github.com/Restart-Game-Lab/astrbot_plugin_ama-10_cognition_memory.git astrbot_plugin_ama_10_cognition_memory
 ```
 
 然后在 AstrBot 管理面板中启用插件，重启 AstrBot。
@@ -145,7 +145,7 @@ core/
 如果你正在使用 `lxfight/astrbot_plugin_livingmemory`：
 
 1. **PostgreSQL 数据完全兼容** — 所有内部表名、字段名与原插件 100% 一致，无需任何数据库迁移
-2. **配置文件** — 插件名称已更改为 `astrbot_plugin_ama_10_memory`，配置文件名会自动变化
+2. **配置文件** — 插件名称已更改为 `astrbot_plugin_ama_10_cognition_memory`，配置文件名会自动变化
 3. **直接替换** — 停用旧插件，启用 AMA-10 Memory，配置 `pg_dsn` 即可
 
 ## 🙏 致谢

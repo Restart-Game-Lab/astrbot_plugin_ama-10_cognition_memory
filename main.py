@@ -50,7 +50,7 @@ if _parse_version(_CURRENT_ASTRBOT_VERSION) < _parse_version(_MIN_ASTRBOT_VERSIO
     "preca-hoshino",
     "An intelligent long-term memory plugin with a dynamic lifecycle for AstrBot.",
     "2.3.1",
-    "https://github.com/preca-hoshino/astrbot_plugin_ama-10_memory",
+    "https://github.com/Restart-Game-Lab/astrbot_plugin_ama-10_cognition_memory",
 )
 class AmaMemoryPlugin(Star):
     """AMA-10 Memory 插件主类"""
