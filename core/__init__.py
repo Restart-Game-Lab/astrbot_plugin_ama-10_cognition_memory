@@ -1,5 +1,5 @@
 """
-AMA-10 Memory核心模块
+AMA-10 Cognition Memory核心模块
 提供统一的记忆管理引擎
 
 目录结构:

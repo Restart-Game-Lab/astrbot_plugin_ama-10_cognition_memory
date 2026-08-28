@@ -449,7 +449,7 @@ class TextProcessor:
 
         Examples:
             >>> processor = TextProcessor()
-            >>> processor.add_custom_words(["AMA-10 Memory", "AstrBot"])
+            >>> processor.add_custom_words(["AMA-10 Cognition Memory", "AstrBot"])
         """
         if not JIEBA_AVAILABLE:
             warnings.warn("jieba 未安装,无法添加自定义词汇", UserWarning)
@@ -698,7 +698,7 @@ def create_text_processor(
     Examples:
         >>> processor = create_text_processor(
         ...     stopwords_path="data/stopwords.txt",
-        ...     custom_words=["AMA-10 Memory", "AstrBot"],
+        ...     custom_words=["AMA-10 Cognition Memory", "AstrBot"],
         ...     additional_stopwords=["测试", "示例"]
         ... )
     """

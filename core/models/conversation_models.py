@@ -1,5 +1,5 @@
 """
-数据模型定义 - AMA-10 Memory 插件重构
+数据模型定义 - AMA-10 Cognition Memory 插件重构
 包含 Message、Session、MemoryEvent 三个核心数据模型
 """
 

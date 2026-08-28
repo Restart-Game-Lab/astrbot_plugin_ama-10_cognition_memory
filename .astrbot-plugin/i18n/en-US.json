@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "display_name": "AMA-10 Memory",
+    "display_name": "AMA-10 Cognition Memory",
     "short_desc": "Intelligent long-term memory for AstrBot",
     "desc": "An intelligent long-term memory plugin with hybrid retrieval (BM25 + vector + graph), WebUI management, and dynamic lifecycle. Supports session/persona isolation, importance decay, and auto-cleanup."
   },

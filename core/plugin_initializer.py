@@ -67,7 +67,7 @@ class PluginInitializer:
             if self._initialization_complete or self._initialization_failed:
                 return self._initialization_complete
 
-        logger.info("AMA-10 Memory 插件开始后台初始化...")
+        logger.info("AMA-10 Cognition Memory 插件开始后台初始化...")
 
         try:
             # 1. 等待 Provider 就绪
@@ -90,7 +90,7 @@ class PluginInitializer:
             return True
 
         except Exception as e:
-            logger.error(f"AMA-10 Memory 插件初始化失败: {e}", exc_info=True)
+            logger.error(f"AMA-10 Cognition Memory 插件初始化失败: {e}", exc_info=True)
             self._initialization_failed = True
             self._initialization_error = str(e)
             return False
@@ -483,7 +483,7 @@ class PluginInitializer:
 
             # 标记初始化完成
             self._initialization_complete = True
-            logger.info("AMA-10 Memory 插件初始化成功。")
+            logger.info("AMA-10 Cognition Memory 插件初始化成功。")
             logger.info(f"[Initializer] 组件状态: memory_engine={self.memory_engine is not None}, "
                         f"memory_processor={self.memory_processor is not None}, "
                         f"conversation_manager={self.conversation_manager is not None}, "

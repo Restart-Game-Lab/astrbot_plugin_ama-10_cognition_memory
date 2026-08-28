@@ -1,5 +1,5 @@
 """
-main.py - AMA-10 Memory 插件主文件
+main.py - AMA-10 Cognition Memory 插件主文件
 负责插件注册、初始化和生命周期管理
 """
 
@@ -46,14 +46,14 @@ if _parse_version(_CURRENT_ASTRBOT_VERSION) < _parse_version(_MIN_ASTRBOT_VERSIO
 
 
 @register(
-    "AMA-10 Memory",
+    "AMA-10 Cognition Memory",
     "preca-hoshino",
     "An intelligent long-term memory plugin with a dynamic lifecycle for AstrBot.",
     "2.3.1",
     "https://github.com/Restart-Game-Lab/astrbot_plugin_ama-10_cognition_memory",
 )
 class AmaMemoryPlugin(Star):
-    """AMA-10 Memory 插件主类"""
+    """AMA-10 Cognition Memory 插件主类"""
 
     def __init__(self, context: Context, config: dict[str, Any]):
         super().__init__(context)
@@ -522,7 +522,7 @@ class AmaMemoryPlugin(Star):
 
     async def terminate(self):
         """Cleanup logic when plugin stops"""
-        logger.info("AMA-10 Memory 插件正在停止...")
+        logger.info("AMA-10 Cognition Memory 插件正在停止...")
         self._terminating = True
 
         # 取消所有后台任务
@@ -569,4 +569,4 @@ class AmaMemoryPlugin(Star):
         except Exception as e:
             logger.warning(f"关闭 PG 连接池时出错: {e}")
 
-        logger.info("AMA-10 Memory 插件已成功停止。")
+        logger.info("AMA-10 Cognition Memory 插件已成功停止。")

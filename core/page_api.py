@@ -24,7 +24,7 @@ PAGE_API_PREFIX = f"/{PLUGIN_NAME}/page"
 
 
 class PluginPageApi:
-    """AMA-10 Memory 插件页面 API。"""
+    """AMA-10 Cognition Memory 插件页面 API。"""
 
     def __init__(self, plugin) -> None:
         self.plugin = plugin
@@ -38,49 +38,49 @@ class PluginPageApi:
             f"{PAGE_API_PREFIX}/stats",
             self.get_stats,
             ["GET"],
-            "AMA-10 Memory Page stats",
+            "AMA-10 Cognition Memory Page stats",
         )
         register(
             f"{PAGE_API_PREFIX}/memories",
             self.list_memories,
             ["GET"],
-            "AMA-10 Memory Page memories",
+            "AMA-10 Cognition Memory Page memories",
         )
         register(
             f"{PAGE_API_PREFIX}/memories/update",
             self.update_memory,
             ["POST"],
-            "AMA-10 Memory Page update memory",
+            "AMA-10 Cognition Memory Page update memory",
         )
         register(
             f"{PAGE_API_PREFIX}/memories/batch-delete",
             self.batch_delete_memories,
             ["POST"],
-            "AMA-10 Memory Page batch delete memories",
+            "AMA-10 Cognition Memory Page batch delete memories",
         )
         register(
             f"{PAGE_API_PREFIX}/recall/test",
             self.test_recall,
             ["POST"],
-            "AMA-10 Memory Page recall test",
+            "AMA-10 Cognition Memory Page recall test",
         )
         register(
             f"{PAGE_API_PREFIX}/graph/overview",
             self.get_graph_overview,
             ["GET"],
-            "AMA-10 Memory Page graph overview",
+            "AMA-10 Cognition Memory Page graph overview",
         )
         register(
             f"{PAGE_API_PREFIX}/graph/query",
             self.query_graph,
             ["POST"],
-            "AMA-10 Memory Page graph query",
+            "AMA-10 Cognition Memory Page graph query",
         )
         register(
             f"{PAGE_API_PREFIX}/backups",
             self.list_backups,
             ["GET"],
-            "AMA-10 Memory Page backup list",
+            "AMA-10 Cognition Memory Page backup list",
         )
         api_count = len([r for r in self.plugin.context.registered_web_apis if r[0].startswith(PAGE_API_PREFIX)])
         logger.info(f"[PageAPI] 已注册 {api_count} 个页面 API (前缀: {PAGE_API_PREFIX})")

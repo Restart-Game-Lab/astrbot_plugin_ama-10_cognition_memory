@@ -4,7 +4,7 @@
 
 
 class AmaMemoryException(Exception):
-    """AMA-10 Memory 插件基础异常"""
+    """AMA-10 Cognition Memory 插件基础异常"""
 
     def __init__(self, message: str, error_code: str | None = None):
         self.message = message
