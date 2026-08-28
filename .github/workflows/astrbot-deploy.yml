@@ -1,0 +1,139 @@
+name: AstrBot Deploy via SSH (Update + Reload)
+
+# AstrBot 端口不对外（仅监听 127.0.0.1）时的自动更新方案：
+# 每次 push 到 main 分支后，GitHub Actions 通过 SSH 登录 AstrBot 所在服务器，
+# 在服务器本地调用 http://127.0.0.1:<port>/api/plugins/... 实现"提交即生效"。
+#
+# 服务器需满足：
+#   1. SSH 可用（OpenSSH Server），且能免密/密钥登录
+#   2. AstrBot 在本机运行，WebUI 端口（默认 6185）监听 127.0.0.1
+#   3. 插件以 git clone 方式安装（metadata.yaml 的 repo 指向本仓库）
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # 支持在 GitHub Actions 页面手动触发
+
+concurrency:
+  group: astrbot-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate required secrets
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          ASTRBOT_API_KEY: ${{ secrets.ASTRBOT_API_KEY }}
+        run: |
+          miss=""
+          [ -z "$SSH_HOST" ] && miss="$miss SSH_HOST"
+          [ -z "$SSH_USER" ] && miss="$miss SSH_USER"
+          [ -z "$SSH_PRIVATE_KEY" ] && miss="$miss SSH_PRIVATE_KEY"
+          [ -z "$ASTRBOT_API_KEY" ] && miss="$miss ASTRBOT_API_KEY"
+          if [ -n "$miss" ]; then
+            echo "::error::Missing required secrets:$miss"
+            echo ""
+            echo "请在 GitHub 仓库 Settings -> Secrets and variables -> Actions 中配置："
+            echo "  SSH_HOST          AstrBot 所在服务器地址（IP 或域名）"
+            echo "  SSH_USER          SSH 登录用户名"
+            echo "  SSH_PRIVATE_KEY   SSH 私钥（OpenSSH 格式，建议免密）"
+            echo "  ASTRBOT_API_KEY   AstrBot API Key（abk_xxx，需含 plugin 权限）"
+            echo ""
+            echo "可选："
+            echo "  SSH_PORT           SSH 端口（默认 22）"
+            echo "  SSH_PASSPHRASE     私钥口令（若私钥设置了密码）"
+            echo "  SSH_FINGERPRINT    服务器 host key 指纹（建议配置，启用主机校验）"
+            echo "  ASTRBOT_PORT       AstrBot WebUI 端口（默认 6185）"
+            exit 1
+          fi
+
+      - name: Determine plugin id from metadata
+        id: meta
+        run: |
+          plugin_id=$(grep '^name:' metadata.yaml | awk '{print $2}')
+          echo "plugin_id=${plugin_id}"
+          echo "plugin_id=${plugin_id}" >> "$GITHUB_OUTPUT"
+
+      - name: Update and reload plugin on AstrBot via SSH
+        id: deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
+          # 把以下环境变量安全传给远程脚本
+          envs: ASTRBOT_PORT,ASTRBOT_API_KEY,PLUGIN_ID,PROXY
+          script: |
+            set -euo pipefail
+
+            # 注意: 必须用 /api/v1/ (OpenAPI) 前缀, API Key 只对 v1 生效。
+            # /api/plugins (Dashboard) 只接受 WebUI JWT, 会对 API Key 返回 401。
+            base="http://127.0.0.1:${ASTRBOT_PORT}/api/v1/plugins"
+
+            echo "==== AstrBot 自动部署 (SSH -> localhost) ===="
+            echo "host port: ${ASTRBOT_PORT}"
+            echo "plugin_id: ${PLUGIN_ID}"
+            echo "proxy    : ${PROXY}"
+
+            # helper: 请求本机 AstrBot，打印响应与 HTTP 状态码并判断是否成功
+            # 成功 = HTTP 2xx 且返回 JSON 无 "status":"error"
+            astrbot_call() {
+              local label=$1; shift
+              local out code body
+              echo ""
+              echo ">>> ${label}"
+              out=$(curl -sS --max-time 300 -w $'\n%{http_code}' "$@") || { echo "::error::${label} 网络请求失败或超时(300s)"; return 1; }
+              code="${out##*$'\n'}"
+              body="${out%$'\n'*}"
+              echo "${body}"
+              if [ "${code}" -ge 200 ] && [ "${code}" -lt 300 ]; then
+                if echo "${body}" | grep -q '"status"[[:space:]]*:[[:space:]]*"error"'; then
+                  echo "::error::${label} 返回业务错误 (HTTP ${code})"
+                  return 1
+                fi
+                return 0
+              fi
+              echo "::error::${label} HTTP 请求失败 (${code})"
+              return 1
+            }
+
+            # update 请求体: 传给 AstrBot 的 proxy 字段(加速站), 加速大文件下载
+            if [ -n "${PROXY}" ]; then
+              update_body="{\"proxy\":\"${PROXY}\"}"
+            else
+              update_body=""
+            fi
+
+            astrbot_call "1/2 更新插件代码（服务端 zip 下载）" \
+              -X POST "${base}/${PLUGIN_ID}/update" \
+              -H "X-API-Key: ${ASTRBOT_API_KEY}" \
+              -H "Content-Type: application/json" \
+              -d "${update_body}" \
+              || exit 1
+
+            astrbot_call "2/2 重载插件（让新代码生效）" \
+              -X POST "${base}/${PLUGIN_ID}/reload" \
+              -H "X-API-Key: ${ASTRBOT_API_KEY}" \
+              -H "Content-Type: application/json" \
+              || exit 1
+
+            echo ""
+            echo "==== 部署成功 ===="
+        env:
+          ASTRBOT_PORT: ${{ secrets.ASTRBOT_PORT || '6185' }}
+          ASTRBOT_API_KEY: ${{ secrets.ASTRBOT_API_KEY }}
+          PLUGIN_ID: ${{ steps.meta.outputs.plugin_id }}
+          PROXY: ${{ vars.ASTRBOT_PROXY }}
