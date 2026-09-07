@@ -2,14 +2,14 @@
 
 <div align="center">
 
-<img src="https://count.getloli.com/@ama_10_cognition_memory?theme=rule34&padding=7&offset=0&align=top&scale=1&pixelated=1&darkmode=auto" alt="Moe Counter">
+<img src="logo.png" alt="logo" width="120">
 
 **为 [AstrBot](https://github.com/AstrBotDevs/AstrBot) 打造的智能长期记忆插件** — 完整的记忆生命周期、图记忆、多路召回，让机器人真正"记得住"。
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 ![Python Version](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![AstrBot](https://img.shields.io/badge/AstrBot-%E2%89%A54.24.2-green)
-![Platform](https://img.shields.io/badge/Platform-Linux-lightgrey)
+[![Author](https://img.shields.io/badge/Author-preca--hoshino-blue)](https://github.com/preca-hoshino)
 [![Repo](https://img.shields.io/badge/repo-Restart--Game--Lab-blue)](https://github.com/Restart-Game-Lab/astrbot_plugin_ama-10_cognition_memory)
 
 [中文](README.md) | [English](README_EN.md) | [日本語](README_JA.md)
