@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="https://count.getloli.com/@preca-hoshino?name=ama-10_cognition_memory&theme=rule34&padding=7&offset=0&align=top&scale=1&pixelated=1&darkmode=auto" alt="Moe Counter">
+<img src="https://count.getloli.com/@astrbot_plugin_ama_10_cognition_memory?theme=rule34&padding=7&offset=0&align=top&scale=1&pixelated=1&darkmode=auto" alt="Moe Counter">
 
 **为 [AstrBot](https://github.com/AstrBotDevs/AstrBot) 打造的智能长期记忆插件** — 完整的记忆生命周期、图记忆、多路召回，让机器人真正"记得住"。
 
