@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="https://count.getloli.com/@astrbot_plugin_ama_10_cognition_memory?theme=rule34&padding=7&offset=0&align=top&scale=1&pixelated=1&darkmode=auto" alt="Moe Counter">
+<img src="https://count.getloli.com/@ama_10_cognition_memory?theme=rule34&padding=7&offset=0&align=top&scale=1&pixelated=1&darkmode=auto" alt="Moe Counter">
 
 **An intelligent long-term memory plugin for [AstrBot](https://github.com/AstrBotDevs/AstrBot)** — Full memory lifecycle, graph memory, and multi-route retrieval, so your bot truly "remembers".
 
